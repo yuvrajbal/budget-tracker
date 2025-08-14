@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Upload, DollarSign, TrendingUp, Calendar, Edit3, Check, X, AlertCircle, CheckCircle, CreditCard } from 'lucide-react';
+import { useAuth } from './AuthContext';
 
 // Use environment variable for API base URL
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
@@ -62,6 +63,17 @@ const BudgetTracker: React.FC = () => {
     remaining: 0
   });
 
+  const { getAuthHeaders, logout } = useAuth();
+
+  // Helper function to handle authentication errors
+  const handleAuthError = (response: Response) => {
+    if (response.status === 401 || response.status === 403) {
+      logout();
+      return true;
+    }
+    return false;
+  };
+
   const COLORS = [
     '#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff88',
     '#ff0088', '#8800ff', '#00ffff', '#ff8800', '#8888ff'
@@ -76,8 +88,11 @@ const BudgetTracker: React.FC = () => {
   const fetchSummary = async (month: string) => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/summary?month=${month}`);
+      const response = await fetch(`${API_BASE_URL}/summary?month=${month}`, {
+        headers: getAuthHeaders()
+      });
       if (!response.ok) {
+        if (handleAuthError(response)) return;
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
       const data = await response.json();
@@ -91,8 +106,11 @@ const BudgetTracker: React.FC = () => {
 
   const fetchTransactions = async (month: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/transactions?month=${month}`);
+      const response = await fetch(`${API_BASE_URL}/transactions?month=${month}`, {
+        headers: getAuthHeaders()
+      });
       if (!response.ok) {
+        if (handleAuthError(response)) return;
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
       const data = await response.json();
@@ -104,8 +122,11 @@ const BudgetTracker: React.FC = () => {
 
   const fetchBudgets = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/budgets`);
+      const response = await fetch(`${API_BASE_URL}/budgets`, {
+        headers: getAuthHeaders()
+      });
       if (!response.ok) {
+        if (handleAuthError(response)) return;
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
       const data = await response.json();
@@ -118,8 +139,11 @@ const BudgetTracker: React.FC = () => {
 
   const fetchAvailableMonths = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/months`);
+      const response = await fetch(`${API_BASE_URL}/months`, {
+        headers: getAuthHeaders()
+      });
       if (!response.ok) {
+        if (handleAuthError(response)) return;
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
       const data = await response.json();
@@ -170,12 +194,21 @@ const BudgetTracker: React.FC = () => {
 
     try {
       setLoading(true);
+      const authHeaders = getAuthHeaders();
+      // For FormData, we don't set Content-Type, but we still need Authorization
+      const headers: { [key: string]: string } = {};
+      if (authHeaders.Authorization) {
+        headers.Authorization = authHeaders.Authorization;
+      }
+
       const response = await fetch(`${API_BASE_URL}/upload-csv`, {
         method: 'POST',
         body: formData,
+        headers
       });
 
       if (!response.ok) {
+        if (handleAuthError(response)) return;
         const errorData = await response.json();
         throw new Error(errorData.error || `HTTP error! Status: ${response.status}`);
       }
@@ -207,12 +240,13 @@ const BudgetTracker: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/transactions/${transactionId}/category`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
+          ...getAuthHeaders()
         },
         body: JSON.stringify({ category: newCategory }),
       });
 
       if (!response.ok) {
+        if (handleAuthError(response)) return;
         const errorData = await response.json();
         throw new Error(errorData.error || `HTTP error! Status: ${response.status}`);
       }
@@ -239,12 +273,13 @@ const BudgetTracker: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/budgets`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
+          ...getAuthHeaders()
         },
         body: JSON.stringify(tempBudgets),
       });
 
       if (!response.ok) {
+        if (handleAuthError(response)) return;
         const errorData = await response.json();
         throw new Error(errorData.error || `HTTP error! Status: ${response.status}`);
       }
